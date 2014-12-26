@@ -57,7 +57,7 @@ public interface Viewer {
      * @param offset The offset to apply to each individual particle
      * @param speed The speed of the particle, must be at least 0
      * @param radius The radius around the position where the particles can
-     * be seen by players
+     *     be seen by players
      */
     void spawnParticles(Particle particle, int particleCount, Vector3d position, Vector3d offset, double speed, int radius);
 
@@ -90,7 +90,7 @@ public interface Viewer {
      * @param offset The offset to apply to each individual particle
      * @param speed The speed of the particle, must be at least 0
      * @param radius The radius around the position where the particles can
-     * be seen by players
+     *     be seen by players
      * @param itemType The type of item the particle will base off from
      */
     void spawnParticles(Particle particle, int particleCount, Vector3d position, Vector3d offset, double speed, int radius, ItemType itemType);
