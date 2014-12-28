@@ -150,7 +150,7 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
     private static String getMutatorName(Method method) {
         Matcher m;
 
-        if (Modifier.isPublic(method.getModifiers()) && method.getParameterTypes().length == 1) {
+        if (Modifier.isPublic(method.getModifiers()) && method.getParameterTypes().length == 1 && method.getReturnType() == void.class) {
             m = MUTATOR.matcher(method.getName());
             if (m.matches()) {
                 return getPropertyName(m.group(1));

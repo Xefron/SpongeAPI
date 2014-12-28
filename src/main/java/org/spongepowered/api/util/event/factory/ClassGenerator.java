@@ -100,56 +100,58 @@ class ClassGenerator {
         {
             MethodVisitor mv = cw.visitMethod(ACC_PUBLIC, "<init>", "(Ljava/util/Map;)V", "(Ljava/util/Map<Ljava/lang/String;Ljava/lang/Object;>;)V", null);
             mv.visitCode();
+
+            // super()
             mv.visitVarInsn(ALOAD, 0);
             mv.visitMethodInsn(INVOKESPECIAL, Type.getInternalName(parentType), "<init>", "()V", false);
 
             for (Property property : properties) {
-                Label afterNullTest = new Label();
-                Label nonNull = new Label();
                 Label afterPut = new Label();
 
+                // Object value = map.get("key")
                 mv.visitVarInsn(ALOAD, 1);
                 mv.visitLdcInsn(property.getName());
                 mv.visitMethodInsn(INVOKEINTERFACE, "java/util/Map", "remove", "(Ljava/lang/Object;)Ljava/lang/Object;", true);
+                mv.visitVarInsn(ASTORE, 2);
 
-                // Add checks for null parameters
+                // Only if we have a null policy:
+                // if (value == null) throw new NullPointerException(...)
                 if (nullPolicy != NullPolicy.DISABLE_PRECONDITIONS) {
                     boolean useNullTest = (nullPolicy == NullPolicy.NON_NULL_BY_DEFAULT && !property.hasNullable())
                             || (nullPolicy == NullPolicy.NULL_BY_DEFAULT && property.hasNonnull());
 
                     if (useNullTest && !property.getType().isPrimitive()) {
-                        mv.visitInsn(DUP);
+                        Label afterNullTest = new Label();
+                        mv.visitVarInsn(ALOAD, 2);
                         mv.visitJumpInsn(IFNONNULL, afterNullTest);
                         mv.visitTypeInsn(NEW, "java/lang/NullPointerException");
                         mv.visitInsn(DUP);
                         mv.visitLdcInsn(property.getName());
                         mv.visitMethodInsn(INVOKESPECIAL, "java/lang/NullPointerException", "<init>", "(Ljava/lang/String;)V", false);
                         mv.visitInsn(ATHROW);
+                        mv.visitLabel(afterNullTest);
                     }
                 }
 
-                mv.visitLabel(afterNullTest);
+                // if (value != null) {
+                mv.visitVarInsn(ALOAD, 2);
+                mv.visitJumpInsn(IFNULL, afterPut);
 
-                // Don't set the field if the value is null, which is mostly
-                // relevant for primitives because the methods below would
-                // result in a NullPointerException
-                mv.visitInsn(DUP);
-                mv.visitJumpInsn(IFNONNULL, nonNull);
-                mv.visitInsn(POP);
-                mv.visitJumpInsn(GOTO, afterPut);
-                mv.visitLabel(nonNull);
+                // stack: -> this
+                mv.visitVarInsn(ALOAD, 0);
 
-                // Boxed primitives need explicit unboxing, unfortunately
+                // ProperObject newValue = (ProperObject) value
+                mv.visitVarInsn(ALOAD, 2);
                 visitUnboxingMethod(mv, property.getType());
 
-                mv.visitVarInsn(ALOAD, 0);
-                mv.visitInsn(SWAP);
+                // this.field = newValue
                 mv.visitFieldInsn(PUTFIELD, internalName, property.getName(), Type.getDescriptor(property.getType()));
+                // }
+
                 mv.visitLabel(afterPut);
             }
 
-            // Throw an IllegalArgumentException if some parameters in the
-            // map are remaining
+            // if (!map.isEmpty()) throw new IllegalArgumentException(...)
             {
                 Label afterException = new Label();
 
@@ -313,7 +315,7 @@ class ClassGenerator {
         } else if (type == double.class) {
             mv.visitTypeInsn(CHECKCAST, "java/lang/Double");
             mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/Double", "doubleValue", "()D", false);
-        } else if (type == double.class) {
+        } else if (type == char.class) {
             mv.visitTypeInsn(CHECKCAST, "java/lang/Character");
             mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/Character", "charValue", "()C", false);
         } else {
